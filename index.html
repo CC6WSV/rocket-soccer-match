@@ -1,1 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rocket Car Soccer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #101827; color: #eef5ff; font: 16px system-ui, sans-serif; }
+    main { width: min(100vw, 1000px); padding: 18px; text-align: center; }
+    h1 { margin: 0 0 6px; font-size: clamp(22px, 4vw, 34px); }
+    p { margin: 6px 0 14px; color: #c5d2e5; }
+    canvas { display: block; width: 100%; height: auto; border: 3px solid #d9e5f5; border-radius: 12px; background: #27834c; touch-action: none; }
+    .hint { font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Rocket Car Soccer</h1>
+    <p>Drive the blue car and bump the ball into the orange goal!</p>
+    <canvas id="game" width="960" height="600" aria-label="Top-down car soccer game"></canvas>
+    <p class="hint">Drive: WASD or arrow keys · Boost: hold Space · Reset: R</p>
+  </main>
+  <script>
+    const canvas = document.querySelector('#game');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const keys = new Set();
+    const car = { x: 250, y: H / 2, angle: 0, vx: 0, vy: 0, r: 22 };
+    const ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: 17 };
+    const goals = { top: H / 2 - 90, bottom: H / 2 + 90, depth: 34 };
+    let blue = 0, orange = 0, last = performance.now();
 
+    addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+      keys.add(k);
+      if (k === 'r') resetRound();
+    });
+    addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+    function resetRound() {
+      car.x = 250; car.y = H / 2; car.angle = 0; car.vx = car.vy = 0;
+      ball.x = W / 2; ball.y = H / 2; ball.vx = ball.vy = 0;
+    }
+    function limitSpeed(body, max) {
+      const speed = Math.hypot(body.vx, body.vy);
+      if (speed > max) { body.vx *= max / speed; body.vy *= max / speed; }
+    }
+    function update(dt) {
+      const forward = keys.has('w') || keys.has('arrowup');
+      const backward = keys.has('s') || keys.has('arrowdown');
+      const left = keys.has('a') || keys.has('arrowleft');
+      const right = keys.has('d') || keys.has('arrowright');
+      const speed = Math.hypot(car.vx, car.vy);
+      if (left) car.angle -= (1.9 + Math.min(speed / 180, 1.5)) * dt;
+      if (right) car.angle += (1.9 + Math.min(speed / 180, 1.5)) * dt;
+      const boost = keys.has(' ');
+      const power = boost ? 430 : 270;
+      const direction = forward ? 1 : backward ? -0.62 : 0;
+      car.vx += Math.cos(car.angle) * power * direction * dt;
+      car.vy += Math.sin(car.angle) * power * direction * dt;
+      const drag = Math.pow(0.985, dt * 60);
+      car.vx *= drag; car.vy *= drag;
+      limitSpeed(car, boost ? 410 : 300);
+      car.x += car.vx * dt; car.y += car.vy * dt;
+
+      // Side walls; the end walls have an opening for each goal.
+      if (car.x < car.r || car.x > W - car.r) { car.x = Math.max(car.r, Math.min(W - car.r, car.x)); car.vx *= -0.5; }
+      if (car.y < car.r || car.y > H - car.r) { car.y = Math.max(car.r, Math.min(H - car.r, car.y)); car.vy *= -0.5; }
+
+      ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+      ball.vx *= Math.pow(0.992, dt * 60); ball.vy *= Math.pow(0.992, dt * 60);
+      if (ball.y - ball.r < 0 || ball.y + ball.r > H) { ball.y = Math.max(ball.r, Math.min(H - ball.r, ball.y)); ball.vy *= -0.82; }
+      if (ball.x - ball.r < 0) {
+        if (ball.y > goals.top && ball.y < goals.bottom) { orange++; resetRound(); }
+        else { ball.x = ball.r; ball.vx = Math.abs(ball.vx) * 0.82; }
+      }
+      if (ball.x + ball.r > W) {
+        if (ball.y > goals.top && ball.y < goals.bottom) { blue++; resetRound(); }
+        else { ball.x = W - ball.r; ball.vx = -Math.abs(ball.vx) * 0.82; }
+      }
+
+      // Circle collision gives the ball a push away from the car.
+      let dx = ball.x - car.x, dy = ball.y - car.y;
+      let distance = Math.hypot(dx, dy);
+      const minDistance = ball.r + car.r;
+      if (distance < minDistance) {
+        if (distance === 0) { dx = 1; dy = 0; distance = 1; }
+        const nx = dx / distance, ny = dy / distance;
+        const overlap = minDistance - distance;
+        ball.x += nx * overlap; ball.y += ny * overlap;
+        const impact = Math.max(0, (car.vx - ball.vx) * nx + (car.vy - ball.vy) * ny);
+        ball.vx += nx * (impact * 1.35 + 65) + car.vx * 0.24;
+        ball.vy += ny * (impact * 1.35 + 65) + car.vy * 0.24;
+        limitSpeed(ball, 620);
+      }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#27834c'; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(255,255,255,.78)'; ctx.lineWidth = 4;
+      ctx.strokeRect(18, 18, W - 36, H - 36);
+      ctx.beginPath(); ctx.moveTo(W / 2, 18); ctx.lineTo(W / 2, H - 18); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, 76, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#ef8a35'; ctx.fillRect(0, goals.top, goals.depth, goals.bottom - goals.top);
+      ctx.fillStyle = '#46a7ff'; ctx.fillRect(W - goals.depth, goals.top, goals.depth, goals.bottom - goals.top);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 30px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(`${blue}  —  ${orange}`, W / 2, 55);
+      // Ball shadow and ball.
+      ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(ball.x + 4, ball.y + 7, ball.r * 1.05, ball.r * .72, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f4f4ed'; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#283242'; ctx.lineWidth = 3; ctx.stroke();
+      // Boost flame.
+      if (keys.has(' ') && (keys.has('w') || keys.has('arrowup'))) {
+        ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
+        ctx.fillStyle = '#ffb22e'; ctx.beginPath(); ctx.moveTo(-20, -9); ctx.lineTo(-43 - Math.random() * 8, 0); ctx.lineTo(-20, 9); ctx.fill(); ctx.restore();
+      }
+      // Car body, windshield, and nose.
+      ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
+      ctx.fillStyle = '#1764d5'; ctx.beginPath(); ctx.roundRect(-24, -16, 48, 32, 8); ctx.fill();
+      ctx.fillStyle = '#bce8ff'; ctx.beginPath(); ctx.roundRect(-5, -11, 17, 22, 5); ctx.fill();
+      ctx.fillStyle = '#f9d34a'; ctx.fillRect(17, -10, 5, 7); ctx.fillRect(17, 3, 5, 7);
+      ctx.restore();
+    }
+    function frame(now) {
+      const dt = Math.min((now - last) / 1000, 0.033); last = now;
+      update(dt); draw(); requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
