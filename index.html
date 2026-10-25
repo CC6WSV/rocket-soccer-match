@@ -3,131 +3,544 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rocket Car Soccer</title>
+  <title>Rocket Soccer Match</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #101827; color: #eef5ff; font: 16px system-ui, sans-serif; }
-    main { width: min(100vw, 1000px); padding: 18px; text-align: center; }
-    h1 { margin: 0 0 6px; font-size: clamp(22px, 4vw, 34px); }
-    p { margin: 6px 0 14px; color: #c5d2e5; }
-    canvas { display: block; width: 100%; height: auto; border: 3px solid #d9e5f5; border-radius: 12px; background: #27834c; touch-action: none; }
-    .hint { font-size: 14px; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #081321; color: #f4f7ff; font: 15px system-ui, sans-serif; }
+    #game { position: fixed; inset: 0; }
+    #game canvas { display: block; width: 100%; height: 100%; }
+    .hud { position: fixed; z-index: 2; top: 18px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+    h1 { margin: 0; font-size: clamp(20px, 4vw, 32px); letter-spacing: .06em; text-shadow: 0 2px 12px #0009; }
+    #score { margin: 6px auto; padding: 5px 22px; width: max-content; border: 1px solid #ffffff55; border-radius: 12px; background: #091526c9; font-size: 26px; font-weight: 800; letter-spacing: .12em; }
+    #message { min-height: 1.4em; color: #c8dbf3; }
+    #timer { margin: 5px auto 0; font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 800; letter-spacing: .1em; text-shadow: 0 2px 12px #0009; }
+    .timer-controls { margin-top: 7px; pointer-events: auto; }
+    .timer-controls button { margin: 0 2px; padding: 4px 8px; border: 1px solid #9cbedb; border-radius: 6px; background: #102945; color: #f4f7ff; font: inherit; cursor: pointer; }
+    .timer-controls button:hover, .timer-controls button.active { background: #2d7ece; border-color: #e6f4ff; }
+    .controls { position: fixed; z-index: 2; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px); padding: 9px 15px; border: 1px solid #ffffff30; border-radius: 10px; background: #091526c9; color: #deebfa; text-align: center; white-space: nowrap; }
+    #boost { position: fixed; z-index: 2; right: 20px; bottom: 18px; width: 150px; padding: 9px 11px; border: 1px solid #ffd76a; border-radius: 10px; background: #111b27d9; color: #ffe994; font-weight: 800; letter-spacing: .08em; text-align: center; }
+    #boost-meter { height: 8px; margin-top: 6px; overflow: hidden; border-radius: 4px; background: #4b4325; }
+    #boost-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #f4a825, #fff18a); transition: width .1s linear; }
+    #speed { position: fixed; z-index: 2; left: 20px; bottom: 18px; padding: 9px 12px; border: 1px solid #a8d3eb; border-radius: 10px; background: #111b27d9; color: #e9f8ff; font-weight: 800; letter-spacing: .06em; text-align: center; }
+    #speed-value { display: block; font-size: 24px; line-height: 1; color: #8ae0ff; }
+    #home-screen { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; padding: 22px; background: radial-gradient(circle at 50% 38%, #19496bb8 0%, #0b1726d9 58%, #050b15f2 100%); backdrop-filter: blur(3px); transition: opacity .35s ease, visibility .35s ease; }
+    #home-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .home-panel { width: min(92vw, 500px); padding: 35px; border: 1px solid #92d7ff8c; border-radius: 22px; background: linear-gradient(145deg, #152e49ed, #0a1423ee); box-shadow: 0 22px 70px #000a, inset 0 1px #ffffff24; text-align: center; }
+    .home-panel h2 { margin: 0; color: #effaff; font-size: clamp(34px, 7vw, 58px); font-style: italic; letter-spacing: .04em; line-height: .94; text-shadow: 0 0 22px #52c7ff9c; }
+    .home-panel p { margin: 18px 0 22px; color: #c8ddf0; line-height: 1.5; }
+    .home-label { margin: 10px 0 9px; color: #ffdd79; font-size: 12px; font-weight: 800; letter-spacing: .18em; }
+    .home-times { display: flex; justify-content: center; gap: 8px; margin-bottom: 22px; }
+    .home-times button { min-width: 78px; padding: 10px 12px; border: 1px solid #82b6db; border-radius: 8px; background: #102945; color: #eaf6ff; font: inherit; font-weight: 750; cursor: pointer; }
+    .home-times button:hover, .home-times button.active { border-color: #ffe283; background: #a35c14; color: #fff8dc; }
+    #play-button { width: min(100%, 290px); padding: 14px 18px; border: 0; border-radius: 9px; background: linear-gradient(135deg, #ffb72b, #e3641c); box-shadow: 0 5px 20px #e8782757; color: #fff; font: 900 19px system-ui, sans-serif; letter-spacing: .1em; cursor: pointer; }
+    #play-button:hover { filter: brightness(1.16); transform: translateY(-1px); }
+    .custom-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 15px; }
+    .custom-options button { padding: 7px 9px; border: 1px solid #6086a8; border-radius: 7px; background: #102945; color: #eaf6ff; font: 12px system-ui, sans-serif; cursor: pointer; }
+    .custom-options button:hover, .custom-options button.active { border-color: #ffe283; background: #315a7e; color: #fff; }
+    .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border: 1px solid #fff9; border-radius: 50%; }
+    #home-button { position: fixed; z-index: 3; top: 18px; right: 20px; padding: 9px 13px; border: 1px solid #ffdc78; border-radius: 8px; background: #142b45ed; color: #fff0af; font: 800 13px system-ui, sans-serif; letter-spacing: .07em; cursor: pointer; }
+    #home-button[hidden] { display: none; }
+    kbd { display: inline-block; padding: 1px 5px; border: 1px solid #8ca2bb; border-radius: 4px; background: #1a2b40; font: inherit; }
+    #error { position: fixed; inset: 0; z-index: 5; display: none; place-items: center; padding: 24px; background: #081321; text-align: center; }
+    #error.show { display: grid; }
+    @media (max-width: 600px) { .controls { font-size: 12px; white-space: normal; width: calc(100vw - 24px); } }
   </style>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js" } }
+  </script>
 </head>
 <body>
-  <main>
-    <h1>Rocket Car Soccer</h1>
-    <p>Drive the blue car and bump the ball into the orange goal!</p>
-    <canvas id="game" width="960" height="600" aria-label="Top-down car soccer game"></canvas>
-    <p class="hint">Drive: WASD or arrow keys · Boost: hold Space · Reset: R</p>
-  </main>
-  <script>
-    const canvas = document.querySelector('#game');
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    const keys = new Set();
-    const car = { x: 250, y: H / 2, angle: 0, vx: 0, vy: 0, r: 22 };
-    const ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: 17 };
-    const goals = { top: H / 2 - 90, bottom: H / 2 + 90, depth: 34 };
-    let blue = 0, orange = 0, last = performance.now();
+  <div id="game"></div>
+  <div class="hud">
+    <h1>ROCKET SOCCER MATCH</h1>
+    <div id="score"><span id="blue">0</span> &nbsp;—&nbsp; <span id="orange">0</span></div>
+    <div id="timer">3:00</div>
+    <div id="message">Drive the blue car and score against the orange opponent!</div>
+    <div class="timer-controls" aria-label="Match length">
+      <button type="button" data-minutes="1">1 min</button>
+      <button type="button" class="active" data-minutes="3">3 min</button>
+      <button type="button" data-minutes="5">5 min</button>
+    </div>
+  </div>
+  <div class="controls"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows drive · <kbd>Space</kbd> boost · <kbd>J</kbd> jump · <kbd>R</kbd> reset</div>
+  <div id="boost">BOOST <span id="boost-value">100</span><div id="boost-meter"><div id="boost-fill"></div></div></div>
+  <div id="speed"><span id="speed-value">0</span> KM/H</div>
+  <div id="home-screen">
+    <main class="home-panel">
+      <h2>ROCKET<br>SOCCER MATCH</h2>
+      <p>Drive, boost, and outscore the orange opponent in a 3D stadium match.</p>
+      <div class="home-label">MATCH LENGTH</div>
+      <div class="home-times">
+        <button type="button" data-home-minutes="1">1 MIN</button>
+        <button type="button" class="active" data-home-minutes="3">3 MIN</button>
+        <button type="button" data-home-minutes="5">5 MIN</button>
+      </div>
+      <div class="home-label">YOUR VEHICLE</div>
+      <div class="custom-options" aria-label="Vehicle type">
+        <button type="button" class="active" data-vehicle="racer">Racer</button>
+        <button type="button" data-vehicle="buggy">Off Road</button>
+        <button type="button" data-vehicle="truck">Truck</button>
+      </div>
+      <div class="home-label">BALL</div>
+      <div class="custom-options" aria-label="Ball style">
+        <button type="button" class="active" data-ball-style="classic">Classic</button>
+        <button type="button" data-ball-style="gold">Gold</button>
+        <button type="button" data-ball-style="neon">Neon</button>
+      </div>
+      <button id="play-button" type="button">PLAY MATCH</button>
+      <p><kbd>WASD</kbd> drive &nbsp; <kbd>Space</kbd> boost &nbsp; <kbd>J</kbd> jump</p>
+    </main>
+  </div>
+  <button id="home-button" type="button" hidden>RETURN HOME</button>
+  <div id="error"><div><h2>Couldn’t start the 3D game</h2><p>Open this game through GitHub Pages while connected to the internet so the 3D library can load.</p></div></div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/postprocessing/UnrealBloomPass.js';
 
+    const mount = document.querySelector('#game');
+    const scoreBlue = document.querySelector('#blue');
+    const scoreOrange = document.querySelector('#orange');
+    const timer = document.querySelector('#timer');
+    const message = document.querySelector('#message');
+    const timerButtons = [...document.querySelectorAll('[data-minutes]')];
+    const boostValue = document.querySelector('#boost-value');
+    const boostFill = document.querySelector('#boost-fill');
+    const speedValue = document.querySelector('#speed-value');
+    const homeScreen = document.querySelector('#home-screen');
+    const homeTimeButtons = [...document.querySelectorAll('[data-home-minutes]')];
+    const vehicleButtons = [...document.querySelectorAll('[data-vehicle]')];
+    const ballStyleButtons = [...document.querySelectorAll('[data-ball-style]')];
+    const playButton = document.querySelector('#play-button');
+    const homeButton = document.querySelector('#home-button');
+    const W = 56, D = 30, goalHalf = 4.5, ballR = 1.28;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#587d9d');
+    scene.fog = new THREE.Fog('#587d9d', 62, 130);
+    const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 180);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    mount.appendChild(renderer.domElement);
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .48, .42, .72);
+    composer.addPass(bloom);
+
+    scene.add(new THREE.HemisphereLight(0xe7f6ff, 0x326144, 2.1));
+    const sun = new THREE.DirectionalLight(0xfff3d5, 3.1);
+    sun.position.set(-18, 36, 20); sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -38; sun.shadow.camera.right = 38;
+    sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
+    sun.shadow.bias = -0.0003;
+    scene.add(sun);
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(145, 32, 16), new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false,
+      vertexShader: 'varying vec3 vWorld; void main() { vWorld = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'varying vec3 vWorld; void main() { float h = clamp(vWorld.y / 92.0, 0.0, 1.0); vec3 horizon = vec3(0.26, 0.48, 0.66); vec3 zenith = vec3(0.018, 0.052, 0.13); gl_FragColor = vec4(mix(horizon, zenith, pow(h, .55)), 1.0); }'
+    }));
+    scene.add(sky);
+
+    const mat = (color, roughness = 0.72, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    function makeGrassTexture() {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+      const context = canvas.getContext('2d'); context.fillStyle = '#276f42'; context.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 3600; i++) {
+        const x = (i * 73) % 256, y = (i * 151) % 256;
+        context.fillStyle = i % 3 ? 'rgba(140, 218, 119, .14)' : 'rgba(9, 48, 22, .16)';
+        context.fillRect(x, y, 1, 2 + i % 3);
+      }
+      const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(17, 9); texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy(); return texture;
+    }
+    const grassTexture = makeGrassTexture();
+    const grassMat = color => new THREE.MeshStandardMaterial({ color, map: grassTexture, roughness: .93, metalness: 0 });
+    const turf = grassMat('#277d4a');
+    const lineMat = mat('#e7fff0', 0.55);
+    const darkMat = mat('#192536', 0.56, 0.2);
+    const blueMat = mat('#1678ff', 0.35, 0.18);
+    const orangeMat = mat('#ff8a27', 0.4, 0.12);
+    const field = new THREE.Mesh(new THREE.PlaneGeometry(W, D), turf);
+    field.rotation.x = -Math.PI / 2; field.receiveShadow = true; scene.add(field);
+    // Alternating turf stripes give the pitch depth and make speed easier to read.
+    for (let i = 0; i < 8; i++) {
+      const stripe = new THREE.Mesh(new THREE.PlaneGeometry(W / 8, D), grassMat(i % 2 ? '#328e55' : '#287f4a'));
+      stripe.rotation.x = -Math.PI / 2; stripe.position.set(-W / 2 + W / 16 + i * W / 8, .006, 0); stripe.receiveShadow = true; scene.add(stripe);
+    }
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), mat('#132536'));
+    ground.rotation.x = -Math.PI / 2; ground.position.y = -0.13; ground.receiveShadow = true; scene.add(ground);
+    const apron = new THREE.Mesh(new THREE.PlaneGeometry(W + 16, D + 16), mat('#1c3649'));
+    apron.rotation.x = -Math.PI / 2; apron.position.y = -.11; apron.receiveShadow = true; scene.add(apron);
+
+    function line(x1, z1, x2, z2, material = lineMat, width = 0.075, y = 0.035) {
+      const points = [new THREE.Vector3(x1, y, z1), new THREE.Vector3(x2, y, z2)];
+      const obj = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2 - x1, z2 - z1), 0.025, width), material);
+      obj.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
+      obj.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
+      scene.add(obj); return obj;
+    }
+    line(-W/2, -D/2, W/2, -D/2); line(-W/2, D/2, W/2, D/2);
+    line(-W/2, -D/2, -W/2, -goalHalf); line(-W/2, goalHalf, -W/2, D/2);
+    line(W/2, -D/2, W/2, -goalHalf); line(W/2, goalHalf, W/2, D/2);
+    // Center stripe and circle.
+    const centerLine = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.025, D), lineMat); centerLine.position.y = 0.035; scene.add(centerLine);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(5.2, 0.045, 8, 64), lineMat); ring.rotation.x = Math.PI / 2; ring.position.y = 0.05; scene.add(ring);
+    for (const x of [-W/2, W/2]) {
+      const color = x < 0 ? blueMat : orangeMat;
+      const goal = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, goalHalf * 2), color); goal.position.set(x, 0.08, 0); scene.add(goal);
+      const postGeo = new THREE.CylinderGeometry(0.17, 0.17, 4.2, 14);
+      for (const z of [-goalHalf, goalHalf]) { const post = new THREE.Mesh(postGeo, color); post.position.set(x, 2.1, z); post.castShadow = true; scene.add(post); }
+      const crossbar = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, goalHalf * 2), color); crossbar.position.set(x, 4.2, 0); crossbar.castShadow = true; scene.add(crossbar);
+      // A subtle net grid behind the goal line.
+      const netMat = new THREE.LineBasicMaterial({ color: x < 0 ? '#79bdff' : '#ffc17e', transparent: true, opacity: 0.38 });
+      const netX = x + (x < 0 ? -3.5 : 3.5);
+      for (let z = -goalHalf; z <= goalHalf + .01; z += 1.5) {
+        const net = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, .15, z), new THREE.Vector3(netX, 4.1, z)]), netMat); scene.add(net);
+      }
+      for (let y = 0.6; y < 4; y += 0.8) {
+        const net = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y, -goalHalf), new THREE.Vector3(netX, y, goalHalf)]), netMat); scene.add(net);
+      }
+    }
+    // Low arena rails along the long sides.
+    for (const z of [-D/2, D/2]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(W, 1.35, 0.45), darkMat); wall.position.set(0, .65, z); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(W, .08, .52), lineMat); trim.position.set(0, 1.34, z); scene.add(trim);
+    }
+    // Curved corner markings and arena boards make the pitch feel enclosed.
+    const cornerLineMat = new THREE.LineBasicMaterial({ color: '#d9fff0', transparent: true, opacity: .78 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const points = [];
+      const cx = sx * (W / 2 - 4.2), cz = sz * (D / 2 - 4.2);
+      for (let i = 0; i <= 12; i++) {
+        const a = i / 12 * Math.PI / 2;
+        points.push(new THREE.Vector3(cx + sx * Math.cos(a) * 4.2, .06, cz + sz * Math.sin(a) * 4.2));
+      }
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), cornerLineMat));
+    }
+    const glassMat = new THREE.MeshPhysicalMaterial({ color: '#b9ecff', transparent: true, opacity: .24, roughness: .08, metalness: .15 });
+    for (const z of [-1, 1]) {
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(W + 7, 4.8, .08), glassMat);
+      glass.position.set(0, 3.6, z * (D / 2 + .3)); scene.add(glass);
+    }
+    const seatMats = ['#1b4e82', '#2f79b8', '#f1a52e', '#e8efff'].map(color => mat(color, .7));
+    function addGrandstand(side) {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(W + 14, 1.3, 7.4), mat('#15293d'));
+      base.position.set(0, .52, side * (D / 2 + 5.2)); base.castShadow = true; base.receiveShadow = true; scene.add(base);
+      for (let row = 0; row < 4; row++) {
+        for (let column = 0; column < 34; column++) {
+          const seat = new THREE.Mesh(new THREE.BoxGeometry(1.25, .32, .62), seatMats[(column * 3 + row * 5 + (side > 0 ? 1 : 0)) % seatMats.length]);
+          seat.position.set(-W / 2 - 3.2 + column * 1.9, 1.2 + row * .58, side * (D / 2 + 2.4 + row * .72));
+          seat.castShadow = true; scene.add(seat);
+        }
+      }
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(W + 6, .75, .14), side < 0 ? blueMat : orangeMat);
+      banner.position.set(0, 4.2, side * (D / 2 + 6.2)); scene.add(banner);
+    }
+    addGrandstand(-1); addGrandstand(1);
+    // Floodlights and a bright perimeter halo frame the stadium at night.
+    const lightPoleMat = mat('#34485c', .38, .45);
+    const lampMat = new THREE.MeshStandardMaterial({ color: '#e9f8ff', emissive: '#bfeeff', emissiveIntensity: 2.4, roughness: .25 });
+    for (const x of [-W / 2 - 7, W / 2 + 7]) for (const z of [-D / 2 - 7, D / 2 + 7]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(.22, .34, 11, 10), lightPoleMat); pole.position.set(x, 5.5, z); pole.castShadow = true; scene.add(pole);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(2.8, .55, 1.1), lampMat); lamp.position.set(x, 11, z); lamp.lookAt(0, 0, 0); scene.add(lamp);
+      const glow = new THREE.PointLight('#bfeeff', 14, 35, 2); glow.position.set(x, 10.5, z); scene.add(glow);
+    }
+    const scoreboard = new THREE.Mesh(new THREE.BoxGeometry(13, 4.6, .45), mat('#101a2a', .34, .4));
+    scoreboard.position.set(0, 6.5, -D / 2 - 8); scoreboard.castShadow = true; scene.add(scoreboard);
+    const scoreboardGlow = new THREE.Mesh(new THREE.BoxGeometry(11.9, 3.5, .05), new THREE.MeshStandardMaterial({ color: '#285070', emissive: '#133b68', emissiveIntensity: 1.25 }));
+    scoreboardGlow.position.set(0, 6.5, -D / 2 - 8.25); scene.add(scoreboardGlow);
+
+    // Small pads refill part of the meter; the two midfield pads fill it completely.
+    const boostPads = [];
+    const padRingMat = new THREE.MeshStandardMaterial({ color: '#e89519', emissive: '#d67b08', emissiveIntensity: 1.2, roughness: .3, metalness: .25 });
+    const padCoreMat = new THREE.MeshStandardMaterial({ color: '#fff09a', emissive: '#ffcb36', emissiveIntensity: 2.4, roughness: .18 });
+    function addBoostPad(x, z, amount, respawn) {
+      const group = new THREE.Group();
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.18, 1.32, .1, 20), padRingMat); ring.position.y = .06; group.add(ring);
+      const core = new THREE.Mesh(new THREE.CylinderGeometry(.72, .72, .16, 20), padCoreMat); core.position.y = .16; group.add(core);
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(.91, .045, 6, 20), padCoreMat); halo.rotation.x = Math.PI / 2; halo.position.y = .25; group.add(halo);
+      const light = new THREE.PointLight('#ffd45b', .7, 5, 2); light.position.y = .7; group.add(light);
+      group.position.set(x, 0, z); scene.add(group);
+      boostPads.push({ x, z, amount, respawn, cooldown: 0, group, light });
+    }
+    for (const [x, z] of [[-15, -9], [-15, 9], [-6, -7], [-6, 7], [6, -7], [6, 7], [15, -9], [15, 9]]) addBoostPad(x, z, 32, 3.5);
+    addBoostPad(0, -11, 100, 6); addBoostPad(0, 11, 100, 6);
+
+    function makeCar(bodyMaterial, hoodColor) {
+      const car = new THREE.Group();
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(3.2, .82, 4.7), bodyMaterial);
+      chassis.position.y = .92; chassis.castShadow = true; chassis.receiveShadow = true; car.add(chassis);
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(2.7, .22, 1.35), mat(hoodColor, .3, .18)); hood.position.set(0, 1.38, 1.15); hood.castShadow = true; car.add(hood);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.25, .82, 1.85), mat('#143c78', .26, .2)); cabin.position.set(0, 1.65, -.45); cabin.castShadow = true; car.add(cabin);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(2.04, .56, .12), mat('#9ce7ff', .2, .15)); glass.position.set(0, 1.68, .48); car.add(glass);
+      const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.9, .32, .22), darkMat); bumper.position.set(0, .77, 2.4); bumper.castShadow = true; car.add(bumper);
+      const variants = { racer: new THREE.Group(), buggy: new THREE.Group(), truck: new THREE.Group() };
+      Object.values(variants).forEach(group => car.add(group));
+      const spoilerBar = new THREE.Mesh(new THREE.BoxGeometry(2.85, .2, .28), bodyMaterial); spoilerBar.position.set(0, 2.12, -2.18); spoilerBar.castShadow = true; variants.racer.add(spoilerBar);
+      for (const x of [-.95, .95]) { const support = new THREE.Mesh(new THREE.BoxGeometry(.16, .52, .16), bodyMaterial); support.position.set(x, 1.84, -2.05); support.castShadow = true; variants.racer.add(support); }
+      const cageMat = mat('#192736', .35, .48);
+      const cageRoof = new THREE.Mesh(new THREE.BoxGeometry(2.65, .14, 2.05), cageMat); cageRoof.position.set(0, 2.46, -.34); cageRoof.castShadow = true; variants.buggy.add(cageRoof);
+      for (const x of [-1.12, 1.12]) for (const z of [-1.12, .65]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(.14, 1.15, .14), cageMat); bar.position.set(x, 1.9, z); bar.castShadow = true; variants.buggy.add(bar); }
+      const truckCab = new THREE.Mesh(new THREE.BoxGeometry(2.62, 1.38, 2.05), bodyMaterial); truckCab.position.set(0, 2.06, -.35); truckCab.castShadow = true; variants.truck.add(truckCab);
+      const truckWindshield = new THREE.Mesh(new THREE.BoxGeometry(2.28, .72, .12), mat('#b8f1ff', .16, .15)); truckWindshield.position.set(0, 2.16, .7); variants.truck.add(truckWindshield);
+      const truckRoof = new THREE.Mesh(new THREE.BoxGeometry(2.85, .15, 2.3), darkMat); truckRoof.position.set(0, 2.8, -.35); truckRoof.castShadow = true; variants.truck.add(truckRoof);
+      variants.buggy.visible = false; variants.truck.visible = false;
+      const tireMat = mat('#111820', .9);
+      const tireGeo = new THREE.CylinderGeometry(.49, .49, .38, 16); tireGeo.rotateZ(Math.PI / 2);
+      for (const x of [-1.62, 1.62]) for (const z of [-1.45, 1.45]) { const tire = new THREE.Mesh(tireGeo, tireMat); tire.position.set(x, .55, z); tire.castShadow = true; car.add(tire); }
+      const lampMat = new THREE.MeshStandardMaterial({ color: '#fff6b5', emissive: '#ffd85a', emissiveIntensity: 1.7 });
+      for (const x of [-.95, .95]) { const lamp = new THREE.Mesh(new THREE.BoxGeometry(.45, .18, .1), lampMat); lamp.position.set(x, 1.08, 2.36); car.add(lamp); }
+      for (const x of [-.78, .78]) { const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(.14, .14, .36, 10), darkMat); exhaust.rotation.x = Math.PI / 2; exhaust.position.set(x, .8, -2.43); car.add(exhaust); }
+      const underglow = new THREE.PointLight(hoodColor, 1.1, 6, 2); underglow.position.set(0, .35, 0); car.add(underglow);
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(.52, 1.8, 12), new THREE.MeshStandardMaterial({ color: '#ffb12e', emissive: '#ff7100', emissiveIntensity: 3.5 }));
+      flame.rotation.x = -Math.PI / 2; flame.position.set(0, .9, -3.05); flame.visible = false; car.add(flame);
+      car.userData = { flame, bodyMaterial, hoodMaterial: hood.material, underglow, variants };
+      scene.add(car); return car;
+    }
+    const playerCarMat = mat('#1678ff', .35, .18);
+    const car = makeCar(playerCarMat, '#64b4ff');
+    car.position.set(-18, 0, 0); car.rotation.y = Math.PI / 2;
+    const opponent = makeCar(orangeMat, '#ffc266');
+    opponent.position.set(18, 0, 0); opponent.rotation.y = -Math.PI / 2;
+    const ballVisual = new THREE.Group();
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(ballR, 32, 24), mat('#f4f7ff', .3, .05));
+    ball.castShadow = true; ball.receiveShadow = true; ballVisual.add(ball);
+    const ballSeams = new THREE.Mesh(new THREE.IcosahedronGeometry(ballR * 1.008, 2), new THREE.MeshStandardMaterial({ color: '#26374c', wireframe: true, transparent: true, opacity: .65, roughness: .45 }));
+    ballSeams.rotation.set(.25, .4, .1); ballVisual.add(ballSeams);
+    ballVisual.position.set(0, ballR, 0); scene.add(ballVisual);
+    const vehicleStyles = {
+      racer: { body: '#1678ff', hood: '#64b4ff', scale: 1 },
+      buggy: { body: '#6ebd3d', hood: '#c2ed70', scale: 1.03 },
+      truck: { body: '#a55be5', hood: '#d3a5ff', scale: 1.08 }
+    };
+    const ballStyles = {
+      classic: { base: '#f4f7ff', seams: '#26374c', glow: '#000000', intensity: 0 },
+      gold: { base: '#dba72b', seams: '#60400c', glow: '#d57d08', intensity: .42 },
+      neon: { base: '#39d9e8', seams: '#17215d', glow: '#067acb', intensity: .85 }
+    };
+    function applyVehicle(styleName) {
+      const style = vehicleStyles[styleName]; if (!style) return;
+      car.userData.bodyMaterial.color.set(style.body);
+      car.userData.hoodMaterial.color.set(style.hood);
+      car.userData.underglow.color.set(style.body);
+      Object.entries(car.userData.variants).forEach(([name, group]) => { group.visible = name === styleName; });
+      car.scale.setScalar(style.scale);
+    }
+    function applyBallStyle(styleName) {
+      const style = ballStyles[styleName]; if (!style) return;
+      ball.material.color.set(style.base); ball.material.emissive.set(style.glow); ball.material.emissiveIntensity = style.intensity;
+      ballSeams.material.color.set(style.seams);
+    }
+    const keys = new Set();
+    const carState = { x: -18, z: 0, y: 0, vx: 0, vz: 0, angle: Math.PI / 2, vy: 0, grounded: true };
+    const opponentState = { x: 18, z: 0, y: 0, vx: 0, vz: 0, angle: -Math.PI / 2, vy: 0, grounded: true };
+    const ballState = { x: 0, y: ballR, z: 0, vx: 0, vy: 0, vz: 0 };
+    let blue = 0, orange = 0, last = performance.now(), goalPause = 0;
+    let matchLength = 3 * 60, timeLeft = matchLength, matchOver = false;
+    let boost = 100;
+    let gameStarted = false, selectedMinutes = 3;
     addEventListener('keydown', e => {
       const k = e.key.toLowerCase();
       if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+      if (!gameStarted && (k === 'enter' || k === ' ')) { startFromHome(); return; }
       keys.add(k);
-      if (k === 'r') resetRound();
+      if (gameStarted && k === 'r') resetRound();
+      if (gameStarted && k === 'j' && carState.grounded) { carState.vy = 8.4; carState.grounded = false; }
     });
     addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-
+    function updateTimer() {
+      const wholeSeconds = Math.ceil(Math.max(0, timeLeft));
+      timer.textContent = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
+    }
+    function updateBoost() {
+      const shown = Math.ceil(boost);
+      boostValue.textContent = shown;
+      boostFill.style.width = `${shown}%`;
+    }
+    function updateSpeed() {
+      speedValue.textContent = Math.round(Math.hypot(carState.vx, carState.vz) * 7.2);
+    }
+    function startMatch(minutes) {
+      matchLength = minutes * 60;
+      timeLeft = matchLength;
+      matchOver = false;
+      blue = 0; orange = 0;
+      scoreBlue.textContent = blue; scoreOrange.textContent = orange;
+      message.textContent = `${minutes}-minute match started!`;
+      timerButtons.forEach(button => button.classList.toggle('active', Number(button.dataset.minutes) === minutes));
+      updateTimer(); resetRound();
+    }
+    function startFromHome() {
+      gameStarted = true;
+      keys.clear();
+      startMatch(selectedMinutes);
+      homeScreen.classList.add('hidden');
+      homeButton.hidden = true;
+    }
+    function endMatch() {
+      matchOver = true;
+      carState.vx = carState.vz = carState.vy = 0;
+      opponentState.vx = opponentState.vz = opponentState.vy = 0;
+      ballState.vx = ballState.vy = ballState.vz = 0;
+      const result = blue === orange ? 'It’s a draw!' : blue > orange ? 'Blue wins!' : 'Orange wins!';
+      message.textContent = `Time’s up — ${result} Choose a match length to play again.`;
+      homeButton.hidden = false;
+    }
+    timerButtons.forEach(button => button.addEventListener('click', () => startMatch(Number(button.dataset.minutes))));
+    homeTimeButtons.forEach(button => button.addEventListener('click', () => {
+      selectedMinutes = Number(button.dataset.homeMinutes);
+      homeTimeButtons.forEach(option => option.classList.toggle('active', option === button));
+    }));
+    vehicleButtons.forEach(button => button.addEventListener('click', () => {
+      applyVehicle(button.dataset.vehicle);
+      vehicleButtons.forEach(option => option.classList.toggle('active', option === button));
+    }));
+    ballStyleButtons.forEach(button => button.addEventListener('click', () => {
+      applyBallStyle(button.dataset.ballStyle);
+      ballStyleButtons.forEach(option => option.classList.toggle('active', option === button));
+    }));
+    playButton.addEventListener('click', startFromHome);
+    homeButton.addEventListener('click', () => {
+      gameStarted = false; matchOver = false; keys.clear();
+      blue = 0; orange = 0; scoreBlue.textContent = blue; scoreOrange.textContent = orange;
+      timeLeft = selectedMinutes * 60; updateTimer(); resetRound();
+      message.textContent = 'Drive the blue car and score against the orange opponent!';
+      homeScreen.classList.remove('hidden'); homeButton.hidden = true;
+    });
     function resetRound() {
-      car.x = 250; car.y = H / 2; car.angle = 0; car.vx = car.vy = 0;
-      ball.x = W / 2; ball.y = H / 2; ball.vx = ball.vy = 0;
+      Object.assign(carState, { x: -18, z: 0, y: 0, vx: 0, vz: 0, angle: Math.PI / 2, vy: 0, grounded: true });
+      Object.assign(opponentState, { x: 18, z: 0, y: 0, vx: 0, vz: 0, angle: -Math.PI / 2, vy: 0, grounded: true });
+      Object.assign(ballState, { x: 0, y: ballR, z: 0, vx: 0, vy: 0, vz: 0 });
+      boost = 100; updateBoost();
+      ballVisual.rotation.set(0, 0, 0); updateSpeed();
+      goalPause = 0;
     }
-    function limitSpeed(body, max) {
-      const speed = Math.hypot(body.vx, body.vy);
-      if (speed > max) { body.vx *= max / speed; body.vy *= max / speed; }
-    }
+    function limitXZ(body, max) { const v = Math.hypot(body.vx, body.vz); if (v > max) { body.vx *= max / v; body.vz *= max / v; } }
     function update(dt) {
+      if (!gameStarted || matchOver) return;
+      timeLeft -= dt;
+      if (timeLeft <= 0) { timeLeft = 0; updateTimer(); endMatch(); return; }
+      updateTimer();
+      if (goalPause > 0) { goalPause -= dt; if (goalPause <= 0) resetRound(); return; }
       const forward = keys.has('w') || keys.has('arrowup');
       const backward = keys.has('s') || keys.has('arrowdown');
       const left = keys.has('a') || keys.has('arrowleft');
       const right = keys.has('d') || keys.has('arrowright');
-      const speed = Math.hypot(car.vx, car.vy);
-      if (left) car.angle -= (1.9 + Math.min(speed / 180, 1.5)) * dt;
-      if (right) car.angle += (1.9 + Math.min(speed / 180, 1.5)) * dt;
-      const boost = keys.has(' ');
-      const power = boost ? 430 : 270;
-      const direction = forward ? 1 : backward ? -0.62 : 0;
-      car.vx += Math.cos(car.angle) * power * direction * dt;
-      car.vy += Math.sin(car.angle) * power * direction * dt;
-      const drag = Math.pow(0.985, dt * 60);
-      car.vx *= drag; car.vy *= drag;
-      limitSpeed(car, boost ? 410 : 300);
-      car.x += car.vx * dt; car.y += car.vy * dt;
+      const speed = Math.hypot(carState.vx, carState.vz);
+      if (left) carState.angle += (1.65 + Math.min(speed / 24, 1.0)) * dt;
+      if (right) carState.angle -= (1.65 + Math.min(speed / 24, 1.0)) * dt;
+      const boosting = keys.has(' ') && forward && boost > 0;
+      const thrust = boosting ? 29 : 18;
+      const input = forward ? 1 : backward ? -.65 : 0;
+      carState.vx += Math.sin(carState.angle) * thrust * input * dt;
+      carState.vz += Math.cos(carState.angle) * thrust * input * dt;
+      // Tires keep most momentum in the direction they point while gripping sideways motion.
+      const forwardX = Math.sin(carState.angle), forwardZ = Math.cos(carState.angle);
+      const sidewaysX = -forwardZ, sidewaysZ = forwardX;
+      const forwardVelocity = carState.vx * forwardX + carState.vz * forwardZ;
+      const sidewaysVelocity = (carState.vx * sidewaysX + carState.vz * sidewaysZ) * Math.pow(.965, dt * 60);
+      const friction = Math.pow(.991, dt * 60);
+      carState.vx = (forwardVelocity * friction) * forwardX + sidewaysVelocity * sidewaysX;
+      carState.vz = (forwardVelocity * friction) * forwardZ + sidewaysVelocity * sidewaysZ;
+      limitXZ(carState, boosting ? 29 : 21);
+      carState.x += carState.vx * dt; carState.z += carState.vz * dt;
+      if (boosting) { boost = Math.max(0, boost - 29 * dt); updateBoost(); }
+      updateSpeed();
+      carState.vy -= 22 * dt; carState.y += carState.vy * dt;
+      if (carState.y <= 0) { carState.y = 0; carState.vy = 0; carState.grounded = true; }
+      // Arena side boundaries; the end walls have goal openings.
+      if (carState.z < -D/2 + 1.7 || carState.z > D/2 - 1.7) { carState.z = THREE.MathUtils.clamp(carState.z, -D/2 + 1.7, D/2 - 1.7); carState.vz *= -.45; }
+      if (carState.x < -W/2 + 1.7 || carState.x > W/2 - 1.7) { carState.x = THREE.MathUtils.clamp(carState.x, -W/2 + 1.7, W/2 - 1.7); carState.vx *= -.45; }
+      for (const pad of boostPads) {
+        if (pad.cooldown > 0) {
+          pad.cooldown -= dt;
+          if (pad.cooldown <= 0) { pad.group.visible = true; pad.light.visible = true; }
+          continue;
+        }
+        pad.group.rotation.y += dt * 1.8;
+        if (Math.hypot(carState.x - pad.x, carState.z - pad.z) < 2.25) {
+          boost = Math.min(100, boost + pad.amount); updateBoost();
+          pad.cooldown = pad.respawn; pad.group.visible = false; pad.light.visible = false;
+        }
+      }
 
-      // Side walls; the end walls have an opening for each goal.
-      if (car.x < car.r || car.x > W - car.r) { car.x = Math.max(car.r, Math.min(W - car.r, car.x)); car.vx *= -0.5; }
-      if (car.y < car.r || car.y > H - car.r) { car.y = Math.max(car.r, Math.min(H - car.r, car.y)); car.vy *= -0.5; }
+      // The orange car steers toward the ball. It is a little slower than the player.
+      const targetX = ballState.x - 0.7;
+      const targetZ = THREE.MathUtils.clamp(ballState.z * .82, -D/2 + 2, D/2 - 2);
+      const toX = targetX - opponentState.x, toZ = targetZ - opponentState.z;
+      const desiredAngle = Math.atan2(toX, toZ);
+      const turn = Math.atan2(Math.sin(desiredAngle - opponentState.angle), Math.cos(desiredAngle - opponentState.angle));
+      opponentState.angle += THREE.MathUtils.clamp(turn, -2.15 * dt, 2.15 * dt);
+      const facing = Math.sin(opponentState.angle) * toX + Math.cos(opponentState.angle) * toZ;
+      if (facing > -1) {
+        opponentState.vx += Math.sin(opponentState.angle) * 15.5 * dt;
+        opponentState.vz += Math.cos(opponentState.angle) * 15.5 * dt;
+      }
+      const opponentFriction = Math.pow(.985, dt * 60);
+      opponentState.vx *= opponentFriction; opponentState.vz *= opponentFriction;
+      limitXZ(opponentState, 17.5);
+      opponentState.x += opponentState.vx * dt; opponentState.z += opponentState.vz * dt;
+      if (opponentState.z < -D/2 + 1.7 || opponentState.z > D/2 - 1.7) { opponentState.z = THREE.MathUtils.clamp(opponentState.z, -D/2 + 1.7, D/2 - 1.7); opponentState.vz *= -.45; }
+      if (opponentState.x < -W/2 + 1.7 || opponentState.x > W/2 - 1.7) { opponentState.x = THREE.MathUtils.clamp(opponentState.x, -W/2 + 1.7, W/2 - 1.7); opponentState.vx *= -.45; }
 
-      ball.x += ball.vx * dt; ball.y += ball.vy * dt;
-      ball.vx *= Math.pow(0.992, dt * 60); ball.vy *= Math.pow(0.992, dt * 60);
-      if (ball.y - ball.r < 0 || ball.y + ball.r > H) { ball.y = Math.max(ball.r, Math.min(H - ball.r, ball.y)); ball.vy *= -0.82; }
-      if (ball.x - ball.r < 0) {
-        if (ball.y > goals.top && ball.y < goals.bottom) { orange++; resetRound(); }
-        else { ball.x = ball.r; ball.vx = Math.abs(ball.vx) * 0.82; }
+      ballState.x += ballState.vx * dt; ballState.y += ballState.vy * dt; ballState.z += ballState.vz * dt;
+      ballState.vy -= 18 * dt;
+      ballState.vx *= Math.pow(.993, dt * 60); ballState.vz *= Math.pow(.993, dt * 60);
+      if (ballState.y < ballR) { ballState.y = ballR; ballState.vy = Math.abs(ballState.vy) > 1.1 ? Math.abs(ballState.vy) * .62 : 0; ballState.vx *= .99; ballState.vz *= .99; }
+      if (Math.abs(ballState.z) > D/2 - ballR) { ballState.z = Math.sign(ballState.z) * (D/2 - ballR); ballState.vz *= -.78; }
+      if (Math.abs(ballState.x) > W/2 - ballR) {
+        const inGoal = Math.abs(ballState.z) < goalHalf - ballR * .25 && ballState.y < 4.1;
+        if (inGoal && Math.sign(ballState.x) > 0) { blue++; scoreBlue.textContent = blue; message.textContent = 'GOAL! Blue scores!'; goalPause = 1.5; }
+        else if (inGoal && Math.sign(ballState.x) < 0) { orange++; scoreOrange.textContent = orange; message.textContent = 'Orange scores!'; goalPause = 1.5; }
+        else { ballState.x = Math.sign(ballState.x) * (W/2 - ballR); ballState.vx *= -.78; }
       }
-      if (ball.x + ball.r > W) {
-        if (ball.y > goals.top && ball.y < goals.bottom) { blue++; resetRound(); }
-        else { ball.x = W - ball.r; ball.vx = -Math.abs(ball.vx) * 0.82; }
+      // Either car can hit the ball. The player can also jump into it.
+      function hitBallBy(driver) {
+        const dx = ballState.x - driver.x, dz = ballState.z - driver.z;
+        const dist = Math.hypot(dx, dz), contactY = driver.y + 1.05;
+        const hitDistance = 1.55 + ballR;
+        if (dist >= hitDistance || Math.abs(ballState.y - contactY) >= 1.85) return;
+        const nx = dist > .001 ? dx / dist : Math.sin(driver.angle), nz = dist > .001 ? dz / dist : Math.cos(driver.angle);
+        const overlap = hitDistance - dist; ballState.x += nx * overlap; ballState.z += nz * overlap;
+        const hit = Math.max(0, (driver.vx - ballState.vx) * nx + (driver.vz - ballState.vz) * nz);
+        ballState.vx += nx * (hit * 1.25 + 5) + driver.vx * .22;
+        ballState.vz += nz * (hit * 1.25 + 5) + driver.vz * .22;
+        ballState.vy = Math.max(ballState.vy, 1.8 + Math.max(0, driver.vy) * .55);
+        const bSpeed = Math.hypot(ballState.vx, ballState.vz); if (bSpeed > 36) { ballState.vx *= 36 / bSpeed; ballState.vz *= 36 / bSpeed; }
       }
-
-      // Circle collision gives the ball a push away from the car.
-      let dx = ball.x - car.x, dy = ball.y - car.y;
-      let distance = Math.hypot(dx, dy);
-      const minDistance = ball.r + car.r;
-      if (distance < minDistance) {
-        if (distance === 0) { dx = 1; dy = 0; distance = 1; }
-        const nx = dx / distance, ny = dy / distance;
-        const overlap = minDistance - distance;
-        ball.x += nx * overlap; ball.y += ny * overlap;
-        const impact = Math.max(0, (car.vx - ball.vx) * nx + (car.vy - ball.vy) * ny);
-        ball.vx += nx * (impact * 1.35 + 65) + car.vx * 0.24;
-        ball.vy += ny * (impact * 1.35 + 65) + car.vy * 0.24;
-        limitSpeed(ball, 620);
-      }
+      hitBallBy(carState);
+      hitBallBy(opponentState);
+      car.position.set(carState.x, carState.y, carState.z); car.rotation.set(0, carState.angle, 0);
+      car.userData.flame.visible = boosting && forward;
+      opponent.position.set(opponentState.x, opponentState.y, opponentState.z); opponent.rotation.set(0, opponentState.angle, 0);
+      opponent.userData.flame.visible = false;
+      ballVisual.position.set(ballState.x, ballState.y, ballState.z);
+      ballVisual.rotation.x += ballState.vz * dt / ballR;
+      ballVisual.rotation.z -= ballState.vx * dt / ballR;
     }
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = '#27834c'; ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgba(255,255,255,.78)'; ctx.lineWidth = 4;
-      ctx.strokeRect(18, 18, W - 36, H - 36);
-      ctx.beginPath(); ctx.moveTo(W / 2, 18); ctx.lineTo(W / 2, H - 18); ctx.stroke();
-      ctx.beginPath(); ctx.arc(W / 2, H / 2, 76, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#ef8a35'; ctx.fillRect(0, goals.top, goals.depth, goals.bottom - goals.top);
-      ctx.fillStyle = '#46a7ff'; ctx.fillRect(W - goals.depth, goals.top, goals.depth, goals.bottom - goals.top);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 30px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText(`${blue}  —  ${orange}`, W / 2, 55);
-      // Ball shadow and ball.
-      ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(ball.x + 4, ball.y + 7, ball.r * 1.05, ball.r * .72, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f4f4ed'; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#283242'; ctx.lineWidth = 3; ctx.stroke();
-      // Boost flame.
-      if (keys.has(' ') && (keys.has('w') || keys.has('arrowup'))) {
-        ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
-        ctx.fillStyle = '#ffb22e'; ctx.beginPath(); ctx.moveTo(-20, -9); ctx.lineTo(-43 - Math.random() * 8, 0); ctx.lineTo(-20, 9); ctx.fill(); ctx.restore();
-      }
-      // Car body, windshield, and nose.
-      ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
-      ctx.fillStyle = '#1764d5'; ctx.beginPath(); ctx.roundRect(-24, -16, 48, 32, 8); ctx.fill();
-      ctx.fillStyle = '#bce8ff'; ctx.beginPath(); ctx.roundRect(-5, -11, 17, 22, 5); ctx.fill();
-      ctx.fillStyle = '#f9d34a'; ctx.fillRect(17, -10, 5, 7); ctx.fillRect(17, 3, 5, 7);
-      ctx.restore();
+    const desired = new THREE.Vector3();
+    const lookAt = new THREE.Vector3();
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - last) / 1000, .033); last = now;
+      update(dt);
+      const behind = new THREE.Vector3(-Math.sin(carState.angle) * 10, 6.2, -Math.cos(carState.angle) * 10);
+      desired.set(carState.x + behind.x, carState.y + behind.y, carState.z + behind.z);
+      camera.position.lerp(desired, 1 - Math.pow(.0008, dt));
+      lookAt.set(carState.x + Math.sin(carState.angle) * 2, .8 + carState.y, carState.z + Math.cos(carState.angle) * 2);
+      camera.lookAt(lookAt);
+      composer.render();
     }
-    function frame(now) {
-      const dt = Math.min((now - last) / 1000, 0.033); last = now;
-      update(dt); draw(); requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
+    addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
+    if (!renderer.capabilities.isWebGL2) document.querySelector('#error').classList.add('show');
+    requestAnimationFrame(animate);
   </script>
 </body>
 </html>
